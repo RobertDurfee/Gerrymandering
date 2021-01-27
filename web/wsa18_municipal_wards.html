@@ -1,0 +1,50 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>Wisconsin 2018 State Assembly</title>
+
+    <style>
+      html,
+      body,
+      #viewDiv {
+        padding: 0;
+        margin: 0;
+        height: 100%;
+        width: 100%;
+      }
+    </style>
+    
+    <link rel="stylesheet" href="https://js.arcgis.com/4.18/esri/themes/light/main.css">
+    <script src="https://js.arcgis.com/4.18/"></script>
+    
+    <script>
+      require(["esri/config", "esri/Map", "esri/views/MapView", "esri/layers/GeoJSONLayer"], function (esriConfig, Map, MapView, GeoJSONLayer) {
+        esriConfig.apiKey = "AAPKe1f7550caecd47ba81486e59e249ed10fGrs0zUkJXthtgBnHTifoQpq0L3_1QIMHayYYq7b0DuGM7pH9pXhBaEH-UXAHjYV";
+                                        
+        const map = new Map({
+          basemap: "arcgis-light-gray",
+          layers: [
+            new GeoJSONLayer({
+              url: "../data/wsa18_municipal_wards.json",
+              popupTemplate: {
+                title: "Voting Info",
+                content: "{WSAREL18}"
+              }
+            })
+          ]
+        });
+        
+        const view = new MapView({
+          map: map,
+          center: [-89.5, 44.5],
+          zoom: 6,
+          container: "viewDiv"
+        });
+      });
+    </script>
+  </head>
+  <body>
+    <div id="viewDiv"></div>
+  </body>
+</html>
