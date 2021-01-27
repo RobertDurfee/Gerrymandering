@@ -26,10 +26,51 @@
           basemap: "arcgis-light-gray",
           layers: [
             new GeoJSONLayer({
+              url: "../data/Wisconsin_Assembly_Districts_2012.geojson",
+              popupTemplate: {
+                title: "District Info",
+              },
+              renderer: {
+                type: "simple",
+                symbol: {
+                  type: "simple-fill",
+                  color: [255, 255, 255, 0.05],
+                  outline: {
+                    color: [128, 128, 128, 0.2],
+                    width: "0.5px",
+                  }
+                }
+              }
+            }),
+            new GeoJSONLayer({
               url: "../data/wsa18_municipal_wards.json",
               popupTemplate: {
                 title: "Voting Info",
                 content: "{WSAREL18}"
+              },
+              renderer: {
+                type: "simple",
+                symbol: {
+                  type: "simple-fill",
+                  outline: {
+                    color: [128, 128, 128, 0.2],
+                    width: "0.5px",
+                  }
+                },
+                visualVariables: [{
+                  type: "color",
+                  field: "WSAREL18",
+                  stops: [{
+                    value: -1.0,
+                    color: "#D81C28",
+                  }, {
+                    value: 0.0,
+                    color: "#FFFFFF",
+                  }, {
+                    value: 1.0,
+                    color: "#019BD8",
+                  }]
+                }]
               }
             })
           ]
