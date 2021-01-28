@@ -1,0 +1,22 @@
+{
+  "name": "gm-web",
+  "version": "1.0.0",
+  "description": "Web interface for helping expose malicious electoral districting and (eventually) provide suggestions for fair redistricting.",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RobertDurfee/Gerrymandering.git"
+  },
+  "author": "Robert Durfee <robert@durfee.io>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/RobertDurfee/Gerrymandering/issues"
+  },
+  "homepage": "https://github.com/RobertDurfee/Gerrymandering#readme",
+  "dependencies": {
+    "express": "^4.17.1"
+  }
+}
