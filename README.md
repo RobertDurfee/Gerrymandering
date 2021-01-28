@@ -1,2 +1,2 @@
-# WisconsinDistricts
-A visualization tool for Wisconsin election and district data.
+# Gerrymandering
+Helping expose malicious electoral districting and (eventually) provide suggestions for fair redistricting. 
