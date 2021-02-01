@@ -56,3 +56,6 @@ END
 # Change `listen_addresses = 'localhost'` to `listen_addresses = '*'` in `postgresql.conf`
 # Add `host gm gm_api 0.0.0.0/0 trust` to `pg_hba.conf`
 # Add `host gm gm_api ::0/0 trust` to `pg_hba.conf`
+
+# Enable PostGIS extension
+psql -U gm_admin -d gm -c "CREATE EXTENSION postgis;";
