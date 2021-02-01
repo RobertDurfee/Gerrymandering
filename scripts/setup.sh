@@ -58,4 +58,10 @@ END
 # Add `host gm gm_api ::0/0 trust` to `pg_hba.conf`
 
 # Enable PostGIS extension
-psql -U gm_admin -d gm -c "CREATE EXTENSION postgis;";
+psql -U gm_admin -d gm -c "$(cat << END
+  CREATE EXTENSION postgis;
+  ALTER DATABASE gm SET search_path = public,gm;
+  UPDATE pg_extension SET extrelocatable = TRUE WHERE extname = 'postgis';
+  ALTER EXTENSION postgis SET SCHEMA gm;
+END
+)";
