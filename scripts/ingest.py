@@ -1,11 +1,13 @@
 import psycopg2
-import json
 import re
+import json
+
 
 def sanitize(name):
     name = re.sub(r'[^a-zA-Z0-9]+', '_', name)
     name = re.sub(r'(^_+|_+$)', '', name)
     return name.lower()
+
 
 conn = psycopg2.connect(user='gm_ingest', host='127.0.0.1', port='5432', database='gm')
 cur = conn.cursor()
@@ -18,11 +20,11 @@ cur.execute('DROP TABLE IF EXISTS gm.states CASCADE;')
 
 cur.execute('''
 CREATE TABLE gm.states (
-    id SERIAL,
-    name VARCHAR NOT NULL,
-    geometry GEOMETRY NOT NULL,
-    PRIMARY KEY (id),
-    UNIQUE (name)
+    name     VARCHAR  NOT NULL,
+
+             UNIQUE (name),
+
+    geometry GEOMETRY NOT NULL
 );
 ''')
 
@@ -33,9 +35,7 @@ states_meta = [{
     'geojson': '../data/simplified/us-states.geojson',
 }]
 
-state_ids = {}
-
-query = 'INSERT INTO gm.states (name, geometry) VALUES (%s, ST_GeomFromGeoJSON(%s)) RETURNING id;'
+query = 'INSERT INTO gm.states (name, geometry) VALUES (%s, ST_GeomFromGeoJSON(%s));'
 
 for state_meta in states_meta:
     with open(state_meta['geojson'], 'r') as geojson_file:
@@ -46,7 +46,6 @@ for state_meta in states_meta:
             json.dumps(feature['geometry'])
         )
         cur.execute(query, state)
-        state_ids[state[0]] = cur.fetchone()[0]
 
 conn.commit()
 
@@ -58,17 +57,20 @@ cur.execute('DROP TABLE IF EXISTS gm.counties CASCADE;')
 
 cur.execute('''
 CREATE TABLE gm.counties (
-    id SERIAL,
-    state_id INTEGER NOT NULL,
-    name VARCHAR NOT NULL,
-    geometry GEOMETRY NOT NULL,
-    PRIMARY KEY (id),
-    FOREIGN KEY (state_id) REFERENCES gm.states(id),
-    UNIQUE (state_id, name)
+    state    VARCHAR  NOT NULL,
+
+             FOREIGN KEY (state)
+              REFERENCES gm.states(name),
+
+    name     VARCHAR  NOT NULL,
+
+             UNIQUE (state, name),
+
+    geometry GEOMETRY NOT NULL
 );
 ''')
 
-cur.execute('CREATE INDEX counties_state_id_fkey ON gm.counties(state_id);')
+cur.execute('CREATE INDEX counties_state_fkey ON gm.counties(state);')
 cur.execute('CREATE INDEX counties_geometry_idx ON gm.counties USING GIST (geometry);')
 
 counties_meta = [{
@@ -77,22 +79,18 @@ counties_meta = [{
     'geojson': '../data/simplified/County_Boundaries_24K.geojson',
 }]
 
-county_ids = []
-
-query = 'INSERT INTO gm.counties (state_id, name, geometry) VALUES (%s, %s, ST_GeomFromGeoJSON(%s)) RETURNING id;'
+query = 'INSERT INTO gm.counties (state, name, geometry) VALUES (%s, %s, ST_GeomFromGeoJSON(%s));'
 
 for county_meta in counties_meta:
-    county_ids.append({})
     with open(county_meta['geojson'], 'r') as geojson_file:
         geojson = json.load(geojson_file)
     for feature in geojson['features']:
         county = (
-            state_ids[county_meta['state']],
+            county_meta['state'],
             sanitize(feature['properties'][county_meta['name_property']]),
             json.dumps(feature['geometry']),
         )
         cur.execute(query, county)
-        county_ids[-1][county[1]] = cur.fetchone()[0]
 
 conn.commit()
 
@@ -104,18 +102,21 @@ cur.execute('DROP TABLE IF EXISTS gm.assemblies CASCADE;')
 
 cur.execute('''
 CREATE TABLE gm.assemblies (
-    id SERIAL,
-    state_id INTEGER NOT NULL,
-    year CHAR(4) NOT NULL,
-    name VARCHAR NOT NULL,
-    geometry GEOMETRY NOT NULL,
-    PRIMARY KEY (id),
-    FOREIGN KEY (state_id) REFERENCES gm.states(id),
-    UNIQUE (state_id, year, name)
+    state    VARCHAR  NOT NULL,
+
+             FOREIGN KEY (state)
+              REFERENCES gm.states(name),
+
+    year     CHAR(4)  NOT NULL,
+    name     VARCHAR  NOT NULL,
+
+             UNIQUE (state, year, name),
+
+    geometry GEOMETRY NOT NULL
 );
 ''')
 
-cur.execute('CREATE INDEX assemblies_state_id_fkey ON gm.assemblies(state_id);')
+cur.execute('CREATE INDEX assemblies_state_fkey ON gm.assemblies(state);')
 cur.execute('CREATE INDEX assemblies_geometry_idx ON gm.assemblies USING GIST (geometry);')
 
 assemblies_meta = [{
@@ -125,30 +126,19 @@ assemblies_meta = [{
     'geojson': '../data/simplified/Wisconsin_Assembly_Districts_2012.geojson',
 }]
 
-assembly_ids = []
-
-query = '''
-INSERT INTO gm.assemblies (
-    state_id,
-    year,
-    name,
-    geometry
-) VALUES (%s, %s, %s, ST_GeomFromGeoJSON(%s)) RETURNING id;
-'''
+query = 'INSERT INTO gm.assemblies (state, year, name, geometry) VALUES (%s, %s, %s, ST_GeomFromGeoJSON(%s));'
 
 for assembly_meta in assemblies_meta:
-    assembly_ids.append({})
     with open(assembly_meta['geojson'], 'r') as geojson_file:
         geojson = json.load(geojson_file)
     for feature in geojson['features']:
         assembly = (
-            state_ids[assembly_meta['state']],
+            assembly_meta['state'],
             assembly_meta['year'],
             sanitize(feature['properties'][assembly_meta['name_property']]),
             json.dumps(feature['geometry']),
         )
         cur.execute(query, assembly)
-        assembly_ids[-1][assembly[2]] = cur.fetchone()[0]
 
 conn.commit()
 
@@ -160,18 +150,21 @@ cur.execute('DROP TABLE IF EXISTS gm.senates CASCADE;')
 
 cur.execute('''
 CREATE TABLE gm.senates (
-    id SERIAL,
-    state_id INTEGER NOT NULL,
-    year CHAR(4) NOT NULL,
-    name VARCHAR NOT NULL,
-    geometry GEOMETRY NOT NULL,
-    PRIMARY KEY (id),
-    FOREIGN KEY (state_id) REFERENCES gm.states(id),
-    UNIQUE (state_id, year, name)
+    state    VARCHAR  NOT NULL,
+
+             FOREIGN KEY (state)
+              REFERENCES gm.states(name),
+
+    year     CHAR(4)  NOT NULL,
+    name     VARCHAR  NOT NULL,
+
+             UNIQUE (state, year, name),
+
+    geometry GEOMETRY NOT NULL
 );
 ''')
 
-cur.execute('CREATE INDEX senates_state_id_fkey ON gm.senates(state_id);')
+cur.execute('CREATE INDEX senates_state_fkey ON gm.senates(state);')
 cur.execute('CREATE INDEX senates_geometry_idx ON gm.senates USING GIST (geometry);')
 
 senates_meta = [{
@@ -181,30 +174,19 @@ senates_meta = [{
     'geojson': '../data/simplified/Wisconsin_Senate_Districts.geojson',
 }]
 
-senate_ids = []
-
-query = '''
-INSERT INTO gm.senates (
-    state_id,
-    year,
-    name,
-    geometry
-) VALUES (%s, %s, %s, ST_GeomFromGeoJSON(%s)) RETURNING id;
-'''
+query = 'INSERT INTO gm.senates (state, year, name, geometry) VALUES (%s, %s, %s, ST_GeomFromGeoJSON(%s));'
 
 for senate_meta in senates_meta:
-    senate_ids.append({})
     with open(senate_meta['geojson'], 'r') as geojson_file:
         geojson = json.load(geojson_file)
     for feature in geojson['features']:
         senate = (
-            state_ids[senate_meta['state']],
+            senate_meta['state'],
             senate_meta['year'],
             sanitize(feature['properties'][senate_meta['name_property']]),
             json.dumps(feature['geometry']),
         )
         cur.execute(query, senate)
-        senate_ids[-1][senate[2]] = cur.fetchone()[0]
 
 conn.commit()
 
@@ -216,18 +198,21 @@ cur.execute('DROP TABLE IF EXISTS gm.congressionals CASCADE;')
 
 cur.execute('''
 CREATE TABLE gm.congressionals (
-    id SERIAL,
-    state_id INTEGER NOT NULL,
-    year CHAR(4) NOT NULL,
-    name VARCHAR NOT NULL,
-    geometry GEOMETRY NOT NULL,
-    PRIMARY KEY (id),
-    FOREIGN KEY (state_id) REFERENCES gm.states(id),
-    UNIQUE (state_id, year, name)
+    state    VARCHAR  NOT NULL,
+
+             FOREIGN KEY (state)
+              REFERENCES gm.states(name),
+
+    year     CHAR(4)  NOT NULL,
+    name     VARCHAR  NOT NULL,
+
+             UNIQUE (state, year, name),
+
+    geometry GEOMETRY NOT NULL
 );
 ''')
 
-cur.execute('CREATE INDEX congressionals_state_id_fkey ON gm.congressionals(state_id);')
+cur.execute('CREATE INDEX congressionals_state_fkey ON gm.congressionals(state);')
 cur.execute('CREATE INDEX congressionals_geometry_idx ON gm.congressionals USING GIST (geometry);')
 
 congressionals_meta = [{
@@ -237,30 +222,19 @@ congressionals_meta = [{
     'geojson': '../data/simplified/Wisconsin_Congressional_Districts_2011.geojson',
 }]
 
-congressional_ids = []
-
-query = '''
-INSERT INTO gm.congressionals (
-    state_id,
-    year,
-    name,
-    geometry
-) VALUES (%s, %s, %s, ST_GeomFromGeoJSON(%s)) RETURNING id;
-'''
+query = 'INSERT INTO gm.congressionals (state, year, name, geometry) VALUES (%s, %s, %s, ST_GeomFromGeoJSON(%s));'
 
 for congressional_meta in congressionals_meta:
-    congressional_ids.append({})
     with open(congressional_meta['geojson'], 'r') as geojson_file:
         geojson = json.load(geojson_file)
     for feature in geojson['features']:
         congressional = (
-            state_ids[congressional_meta['state']],
+            congressional_meta['state'],
             congressional_meta['year'],
             sanitize(feature['properties'][congressional_meta['name_property']]),
             json.dumps(feature['geometry']),
         )
         cur.execute(query, congressional)
-        congressional_ids[-1][congressional[2]] = cur.fetchone()[0]
 
 conn.commit()
 
@@ -272,30 +246,45 @@ cur.execute('DROP TABLE IF EXISTS gm.wards CASCADE;')
 
 cur.execute('''
 CREATE TABLE gm.wards (
-    id SERIAL,
-    state_id INTEGER NOT NULL,
-    county_id INTEGER NOT NULL,
-    year CHAR(4) NOT NULL,
-    name VARCHAR NOT NULL,
-    assembly_id INTEGER NOT NULL,
-    senate_id INTEGER NOT NULL,
-    congressional_id INTEGER NOT NULL,
-    geometry GEOMETRY NOT NULL,
-    PRIMARY KEY (id),
-    FOREIGN KEY (state_id) REFERENCES gm.states(id),
-    FOREIGN KEY (county_id) REFERENCES gm.counties(id),
-    FOREIGN KEY (assembly_id) REFERENCES gm.assemblies(id),
-    FOREIGN KEY (senate_id) REFERENCES gm.senates(id),
-    FOREIGN KEY (congressional_id) REFERENCES gm.congressionals(id),
-    UNIQUE (state_id, county_id, year, name)
+    state         VARCHAR  NOT NULL,
+
+                  FOREIGN KEY (state)
+                   REFERENCES gm.states(name),
+
+    county        VARCHAR  NOT NULL,
+
+                  FOREIGN KEY (state, county)
+                   REFERENCES gm.counties(state, name),
+
+    year          CHAR(4)  NOT NULL,
+    name          VARCHAR  NOT NULL,
+
+                  UNIQUE (state, county, year, name),
+
+    assembly      VARCHAR  NOT NULL,
+
+                  FOREIGN KEY (state, year, assembly)
+                   REFERENCES gm.assemblies(state, year, name),
+
+    senate        VARCHAR  NOT NULL,
+
+                  FOREIGN KEY (state, year, senate)
+                   REFERENCES gm.senates(state, year, name),
+
+    congressional VARCHAR  NOT NULL,
+
+                  FOREIGN KEY (state, year, congressional)
+                   REFERENCES gm.congressionals(state, year, name),
+
+    geometry      GEOMETRY NOT NULL
 );
 ''')
 
-cur.execute('CREATE INDEX wards_state_id_fkey ON gm.wards(state_id);')
-cur.execute('CREATE INDEX wards_county_id_fkey ON gm.wards(county_id);')
-cur.execute('CREATE INDEX wards_assembly_id_fkey ON gm.wards(assembly_id);')
-cur.execute('CREATE INDEX wards_senate_id_fkey ON gm.wards(senate_id);')
-cur.execute('CREATE INDEX wards_congressional_id_fkey ON gm.wards(congressional_id);')
+cur.execute('CREATE INDEX wards_state_fkey ON gm.wards(state);')
+cur.execute('CREATE INDEX wards_state_county_fkey ON gm.wards(state, county);')
+cur.execute('CREATE INDEX wards_state_year_assembly_fkey ON gm.wards(state, year, assembly);')
+cur.execute('CREATE INDEX wards_state_year_senate_fkey ON gm.wards(state, year, senate);')
+cur.execute('CREATE INDEX wards_state_year_congressional_fkey ON gm.wards(state, year, congressional);')
 cur.execute('CREATE INDEX wards_geometry_idx ON gm.wards USING GIST (geometry);')
 
 wards_meta = [{
@@ -309,38 +298,34 @@ wards_meta = [{
     'geojson': '../data/simplified/2018-2012_Election_Data_with_2011_Wards.geojson',
 }]
 
-ward_ids = []
-
 query = '''
 INSERT INTO gm.wards (
-    state_id,
+    state,
+    county,
     year,
     name,
-    county_id,
-    assembly_id,
-    senate_id,
-    congressional_id,
+    assembly,
+    senate,
+    congressional,
     geometry
-) VALUES (%s, %s, %s, %s, %s, %s, %s, ST_GeomFromGeoJSON(%s)) RETURNING id;
+) VALUES (%s, %s, %s, %s, %s, %s, %s, ST_GeomFromGeoJSON(%s));
 '''
 
-for i, ward_meta in enumerate(wards_meta):
-    ward_ids.append([])
+for ward_meta in wards_meta:
     with open(ward_meta['geojson'], 'r') as geojson_file:
         geojson = json.load(geojson_file)
     for feature in geojson['features']:
         ward = (
-            state_ids[ward_meta['state']],
+            ward_meta['state'],
+            sanitize(feature['properties'][ward_meta['county_property']]),
             ward_meta['year'],
             sanitize(feature['properties'][ward_meta['name_property']]),
-            county_ids[i][sanitize(feature['properties'][ward_meta['county_property']])],
-            assembly_ids[i][sanitize(feature['properties'][ward_meta['assembly_property']])],
-            senate_ids[i][sanitize(feature['properties'][ward_meta['senate_property']])],
-            congressional_ids[i][sanitize(feature['properties'][ward_meta['congressional_property']])],
+            sanitize(feature['properties'][ward_meta['assembly_property']]),
+            sanitize(feature['properties'][ward_meta['senate_property']]),
+            sanitize(feature['properties'][ward_meta['congressional_property']]),
             json.dumps(feature['geometry']),
         )
         cur.execute(query, ward)
-        ward_ids[-1].append(cur.fetchone()[0])
 
 conn.commit()
 
@@ -352,26 +337,36 @@ cur.execute('DROP TABLE IF EXISTS gm.votes CASCADE;')
 
 cur.execute('''
 CREATE TABLE gm.votes (
-    id SERIAL,
-    state_id INTEGER NOT NULL,
-    race VARCHAR NOT NULL,
-    year CHAR(4) NOT NULL,
-    ward_id INTEGER NOT NULL,
-    total INTEGER NOT NULL,
-    democrat INTEGER NOT NULL,
-    republican INTEGER NOT NULL,
-    PRIMARY KEY (id),
-    FOREIGN KEY (state_id) REFERENCES gm.states(id),
-    FOREIGN KEY (ward_id) REFERENCES gm.wards(id),
-    UNIQUE (state_id, race, year, ward_id)
+    state      VARCHAR NOT NULL,
+
+               FOREIGN KEY (state)
+                REFERENCES gm.states(name),
+
+    race       VARCHAR NOT NULL,
+    year       CHAR(4) NOT NULL,
+    county     VARCHAR NOT NULL,
+    ward_year  CHAR(4) NOT NULL,
+    ward       VARCHAR NOT NULL,
+
+               UNIQUE (state, race, year, county, ward_year, ward),
+
+               FOREIGN KEY (state, county, ward_year, ward)
+                REFERENCES gm.wards(state, county, year, name),
+
+    total      INTEGER NOT NULL,
+    democrat   INTEGER NOT NULL,
+    republican INTEGER NOT NULL
 );
 ''')
 
-cur.execute('CREATE INDEX votes_state_id_fkey ON gm.votes(state_id);')
-cur.execute('CREATE INDEX votes_ward_id_fkey ON gm.votes(ward_id);')
+cur.execute('CREATE INDEX votes_state_fkey ON gm.votes(state);')
+cur.execute('CREATE INDEX votes_state_county_ward_year_ward_fkey ON gm.votes(state, county, ward_year, ward);')
 
 votes_meta = [{
     'state': 'wisconsin',
+    'county_property': 'CNTY_NAME',
+    'ward_year': '2011',
+    'ward_property': 'LABEL',
     'races': {
         'president': [{
             'year': '2012',
@@ -529,27 +524,31 @@ votes_meta = [{
 
 query = '''
 INSERT INTO gm.votes (
-    state_id,
-    year,
+    state,
     race,
-    ward_id,
+    year,
+    county,
+    ward_year,
+    ward,
     total,
     democrat,
     republican
-) VALUES (%s, %s, %s, %s, %s, %s, %s);
+) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
 '''
 
-for i, vote_meta in enumerate(votes_meta):
+for vote_meta in votes_meta:
     with open(vote_meta['geojson'], 'r') as geojson_file:
         geojson = json.load(geojson_file)
-    for j, feature in enumerate(geojson['features']):
+    for feature in geojson['features']:
         for race, years in vote_meta['races'].items():
             for year in years:
                 vote = (
-                    state_ids[vote_meta['state']],
-                    year['year'],
+                    vote_meta['state'],
                     race,
-                    ward_ids[i][j],
+                    year['year'],
+                    sanitize(feature['properties'][vote_meta['county_property']]),
+                    vote_meta['ward_year'],
+                    sanitize(feature['properties'][vote_meta['ward_property']]),
                     feature['properties'][year['total_property']],
                     feature['properties'][year['democrat_property']],
                     feature['properties'][year['republican_property']],
@@ -566,31 +565,41 @@ cur.execute('DROP TABLE IF EXISTS gm.populations CASCADE;')
 
 cur.execute('''
 CREATE TABLE gm.populations (
-    id SERIAL,
-    state_id INTEGER NOT NULL,
-    year CHAR(4) NOT NULL,
-    ward_id INTEGER NOT NULL,
-    total INTEGER NOT NULL,
-    white INTEGER NOT NULL,
-    black INTEGER NOT NULL,
-    american_indian INTEGER NOT NULL,
-    asian INTEGER NOT NULL,
+    state            VARCHAR NOT NULL,
+
+                     FOREIGN KEY (state)
+                      REFERENCES gm.states(name),
+
+    year             CHAR(4) NOT NULL,
+    county           VARCHAR NOT NULL,
+    ward_year        CHAR(4) NOT NULL,
+    ward             VARCHAR NOT NULL,
+
+                     UNIQUE (state, year, county, ward_year, ward),
+
+                     FOREIGN KEY (state, county, ward_year, ward)
+                      REFERENCES gm.wards(state, county, year, name),
+
+    total            INTEGER NOT NULL,
+    white            INTEGER NOT NULL,
+    black            INTEGER NOT NULL,
+    american_indian  INTEGER NOT NULL,
+    asian            INTEGER NOT NULL,
     pacific_islander INTEGER NOT NULL,
-    hispanic INTEGER NOT NULL,
-    other INTEGER NOT NULL,
-    PRIMARY KEY (id),
-    FOREIGN KEY (state_id) REFERENCES gm.states(id),
-    FOREIGN KEY (ward_id) REFERENCES gm.wards(id),
-    UNIQUE (state_id, year, ward_id)
+    hispanic         INTEGER NOT NULL,
+    other            INTEGER NOT NULL
 );
 ''')
 
-cur.execute('CREATE INDEX populations_state_id_fkey ON gm.populations(state_id);')
-cur.execute('CREATE INDEX populations_ward_id_fkey ON gm.populations(ward_id);')
+cur.execute('CREATE INDEX populations_state_fkey ON gm.populations(state);')
+cur.execute('CREATE INDEX populations_state_county_ward_year_ward_fkey ON gm.populations(state, county, ward_year, ward);')
 
 populations_meta = [{
     'state': 'wisconsin',
-    'year': '2011',
+    'year': '2010',
+    'county_property': 'CNTY_NAME',
+    'ward_year': '2011',
+    'ward_property': 'LABEL',
     'total_property': 'PERSONS18',
     'white_property': 'WHITE18',
     'black_property': 'BLACK18',
@@ -604,9 +613,11 @@ populations_meta = [{
 
 query = '''
 INSERT INTO gm.populations (
-    state_id,
+    state,
     year,
-    ward_id,
+    county,
+    ward_year,
+    ward,
     total,
     white,
     black,
@@ -615,17 +626,19 @@ INSERT INTO gm.populations (
     pacific_islander,
     hispanic,
     other
-) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
 '''
 
-for i, population_meta in enumerate(populations_meta):
+for population_meta in populations_meta:
     with open(population_meta['geojson'], 'r') as geojson_file:
         geojson = json.load(geojson_file)
-    for j, feature in enumerate(geojson['features']):
+    for feature in geojson['features']:
         population = (
-            state_ids[population_meta['state']],
+            population_meta['state'],
             population_meta['year'],
-            ward_ids[i][j],
+            sanitize(feature['properties'][population_meta['county_property']]),
+            population_meta['ward_year'],
+            sanitize(feature['properties'][population_meta['ward_property']]),
             feature['properties'][population_meta['total_property']],
             feature['properties'][population_meta['white_property']],
             feature['properties'][population_meta['black_property']],
