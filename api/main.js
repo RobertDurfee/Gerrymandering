@@ -15,6 +15,55 @@ const POOL = new pg.Pool({
 })
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Helper Functions
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const parseCountyURI = ward => {
+  if (ward) {
+    const match = ward.match(/^states\/(?<state>[^\/]*)\/counties\/(?<name>[^\/]*)$/)
+    if (match) {
+      return match.groups
+    }
+  }
+}
+
+const parseAssemblyURI = ward => {
+  if (ward) {
+    const match = ward.match(/^states\/(?<state>[^\/]*)\/years\/(?<year>[^\/]*)\/assemblies\/(?<name>[^\/]*)$/)
+    if (match) {
+      return match.groups
+    }
+  }
+}
+
+const parseSenateURI = ward => {
+  if (ward) {
+    const match = ward.match(/^states\/(?<state>[^\/]*)\/years\/(?<year>[^\/]*)\/senates\/(?<name>[^\/]*)$/)
+    if (match) {
+      return match.groups
+    }
+  }
+}
+
+const parseCongressionalURI = ward => {
+  if (ward) {
+    const match = ward.match(/^states\/(?<state>[^\/]*)\/years\/(?<year>[^\/]*)\/congressionals\/(?<name>[^\/]*)$/)
+    if (match) {
+      return match.groups
+    }
+  }
+}
+
+const parseWardURI = ward => {
+  if (ward) {
+    const match = ward.match(/^states\/(?<state>[^\/]*)\/years\/(?<year>[^\/]*)\/wards\/(?<name>[^\/]*)$/)
+    if (match) {
+      return match.groups
+    }
+  }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // App Configuration
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -27,17 +76,146 @@ app.set('json spaces', 2)
 // REST Methods
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// Method: states.list
+app.get('/states', (req, res) => {
+  const within = req.query['within']
+  const intersects = req.query['intersects']
+  const contains = req.query['contains']
+  const county = parseCountyURI(req.query['county'])
+  const assembly = parseAssemblyURI(req.query['assembly'])
+  const senate = parseSenateURI(req.query['senate'])
+  const congressional = parseCongressionalURI(req.query['congressional'])
+  const ward = parseWardURI(req.query['ward'])
+  const query = `
+    SELECT st.name AS name,
+           ST_AsGeoJSON(st.geometry) AS geometry
+
+      FROM states AS st
+
+         ${(county) ? `
+           JOIN counties AS cty
+           ON st.name = cty.state
+         ` : ''}
+
+         ${(assembly) ? `
+           JOIN assemblies AS asm
+           ON st.name = asm.state
+         ` : ''}
+
+         ${(senate) ? `
+           JOIN senates AS sen
+           ON st.name = sen.state
+         ` : ''}
+
+         ${(congressional) ? `
+           JOIN congressionals AS con
+           ON st.name = con.state
+         ` : ''}
+
+         ${(ward) ? `
+           JOIN wards AS wrd
+           ON st.name = wrd.state
+         ` : ''}
+
+     WHERE TRUE
+     ${(within) ? `
+       AND ST_Within(st.geometry, ST_GeomFromGeoJSON('${within}'))
+     ` : ''}
+     ${(intersects) ? `
+       AND ST_Intersects(st.geometry, ST_GeomFromGeoJSON('${intersects}'))
+     ` : ''}
+     ${(contains) ? `
+       AND ST_Contains(st.geometry, ST_GeomFromGeoJSON('${contains}'))
+     ` : ''}
+     ${(county) ? `
+       AND cty.state = '${county['state']}'
+       AND cty.name = '${county['name']}'
+     ` : ''}
+     ${(assembly) ? `
+       AND asm.state = '${assembly['state']}'
+       AND asm.year = '${assembly['year']}'
+       AND asm.name = '${assembly['name']}'
+     ` : ''}
+     ${(senate) ? `
+       AND sen.state = '${senate['state']}'
+       AND sen.year = '${senate['year']}'
+       AND sen.name = '${senate['name']}'
+     ` : ''}
+     ${(congressional) ? `
+       AND con.state = '${congressional['state']}'
+       AND con.year = '${congressional['year']}'
+       AND con.name = '${congressional['name']}'
+     ` : ''}
+     ${(ward) ? `
+       AND wrd.state = '${ward['state']}'
+       AND wrd.year = '${ward['year']}'
+       AND wrd.name = '${ward['name']}'
+     ` : ''}
+  `
+  // console.log(query)
+  POOL.query(query).then(results => {
+    res.status(200).json(results.rows)
+  }).catch(error => {
+    res.status(500).json({ "error": error })
+  })
+})
+
 // Method: states.get
 app.get('/states/:state', (req, res) => {
   const state = req.params['state']
-  POOL.query(`
+  const query = `
     SELECT '${state}' AS name,
            ST_AsGeoJSON(st.geometry) AS geometry
 
       FROM states AS st
 
-     WHERE st.name = '${state}';
-  `).then(results => {
+     WHERE st.name = '${state}'
+  `
+  // console.log(query)
+  POOL.query(query).then(results => {
+    res.status(200).json(results.rows)
+  }).catch(error => {
+    res.status(500).json({ "error": error })
+  })
+})
+
+// Method: counties.list
+app.get('/states/:state/counties', (req, res) => {
+  const state = req.params['state']
+  const within = req.query['within']
+  const intersects = req.query['intersects']
+  const contains = req.query['contains']
+  const ward = parseWardURI(req.query['ward'])
+  const query = `
+    SELECT 'states/${state}' AS state,
+           cty.name AS name,
+           ST_AsGeoJSON(cty.geometry) AS geometry
+
+      FROM counties AS cty
+
+         ${(ward) ? `
+           JOIN wards AS wrd
+           ON cty.name = wrd.county
+         ` : ''}
+
+     WHERE cty.state = '${state}'
+     ${(within) ? `
+       AND ST_Within(cty.geometry, ST_GeomFromGeoJSON('${within}'))
+     ` : ''}
+     ${(intersects) ? `
+       AND ST_Intersects(cty.geometry, ST_GeomFromGeoJSON('${intersects}'))
+     ` : ''}
+     ${(contains) ? `
+       AND ST_Contains(cty.geometry, ST_GeomFromGeoJSON('${contains}'))
+     ` : ''}
+     ${(ward) ? `
+       AND wrd.state = '${ward['state']}'
+       AND wrd.year = '${ward['year']}'
+       AND wrd.name = '${ward['name']}'
+     ` : ''}
+  `
+  // console.log(query)
+  POOL.query(query).then(results => {
     res.status(200).json(results.rows)
   }).catch(error => {
     res.status(500).json({ "error": error })
@@ -48,7 +226,7 @@ app.get('/states/:state', (req, res) => {
 app.get('/states/:state/counties/:county', (req, res) => {
   const state = req.params['state']
   const county = req.params['county']
-  POOL.query(`
+  const query = `
     SELECT 'states/${state}' AS state,
            '${county}' AS name,
            ST_AsGeoJSON(cty.geometry) AS geometry
@@ -56,8 +234,56 @@ app.get('/states/:state/counties/:county', (req, res) => {
       FROM counties AS cty
 
      WHERE cty.state = '${state}'
-       AND cty.name = '${county}';
-  `).then(results => {
+       AND cty.name = '${county}'
+  `
+  // console.log(query)
+  POOL.query(query).then(results => {
+    res.status(200).json(results.rows)
+  }).catch(error => {
+    res.status(500).json({ "error": error })
+  })
+})
+
+// Method: assemblies.list
+app.get('/states/:state/years/:year/assemblies', (req, res) => {
+  const state = req.params['state']
+  const year = req.params['year']
+  const within = req.query['within']
+  const intersects = req.query['intersects']
+  const contains = req.query['contains']
+  const ward = parseWardURI(req.query['ward'])
+  const query = `
+    SELECT 'states/${state}' AS state,
+           '${year}' AS year,
+           asm.name AS name,
+           ST_AsGeoJSON(asm.geometry) AS geometry
+
+      FROM assemblies AS asm
+
+         ${(ward) ? `
+           JOIN wards AS wrd
+           ON asm.name = wrd.assembly
+         ` : ''}
+
+     WHERE asm.state = '${state}'
+       AND asm.year = '${year}'
+     ${(within) ? `
+       AND ST_Within(asm.geometry, ST_GeomFromGeoJSON('${within}'))
+     ` : ''}
+     ${(intersects) ? `
+       AND ST_Intersects(asm.geometry, ST_GeomFromGeoJSON('${intersects}'))
+     ` : ''}
+     ${(contains) ? `
+       AND ST_Contains(asm.geometry, ST_GeomFromGeoJSON('${contains}'))
+     ` : ''}
+     ${(ward) ? `
+       AND wrd.state = '${ward['state']}'
+       AND wrd.year = '${ward['year']}'
+       AND wrd.name = '${ward['name']}'
+     ` : ''}
+  `
+  // console.log(query)
+  POOL.query(query).then(results => {
     res.status(200).json(results.rows)
   }).catch(error => {
     res.status(500).json({ "error": error })
@@ -69,7 +295,7 @@ app.get('/states/:state/years/:year/assemblies/:assembly', (req, res) => {
   const state = req.params['state']
   const year = req.params['year']
   const assembly = req.params['assembly']
-  POOL.query(`
+  const query = `
     SELECT 'states/${state}' AS state,
            '${year}' AS year,
            '${assembly}' AS name,
@@ -79,8 +305,56 @@ app.get('/states/:state/years/:year/assemblies/:assembly', (req, res) => {
 
      WHERE asm.state = '${state}'
        AND asm.year = '${year}'
-       AND asm.name = '${assembly}';
-  `).then(results => {
+       AND asm.name = '${assembly}'
+  `
+  // console.log(query)
+  POOL.query(query).then(results => {
+    res.status(200).json(results.rows)
+  }).catch(error => {
+    res.status(500).json({ "error": error })
+  })
+})
+
+// Method: senates.list
+app.get('/states/:state/years/:year/senates', (req, res) => {
+  const state = req.params['state']
+  const year = req.params['year']
+  const within = req.query['within']
+  const intersects = req.query['intersects']
+  const contains = req.query['contains']
+  const ward = parseWardURI(req.query['ward'])
+  const query = `
+    SELECT 'states/${state}' AS state,
+           '${year}' AS year,
+           sen.name AS name,
+           ST_AsGeoJSON(sen.geometry) AS geometry
+
+      FROM senates AS sen
+
+         ${(ward) ? `
+           JOIN wards AS wrd
+           ON sen.name = wrd.senate
+         ` : ''}
+
+     WHERE sen.state = '${state}'
+       AND sen.year = '${year}'
+     ${(within) ? `
+       AND ST_Within(sen.geometry, ST_GeomFromGeoJSON('${within}'))
+     ` : ''}
+     ${(intersects) ? `
+       AND ST_Intersects(sen.geometry, ST_GeomFromGeoJSON('${intersects}'))
+     ` : ''}
+     ${(contains) ? `
+       AND ST_Contains(sen.geometry, ST_GeomFromGeoJSON('${contains}'))
+     ` : ''}
+     ${(ward) ? `
+       AND wrd.state = '${ward['state']}'
+       AND wrd.year = '${ward['year']}'
+       AND wrd.name = '${ward['name']}'
+     ` : ''}
+  `
+  // console.log(query)
+  POOL.query(query).then(results => {
     res.status(200).json(results.rows)
   }).catch(error => {
     res.status(500).json({ "error": error })
@@ -92,7 +366,7 @@ app.get('/states/:state/years/:year/senates/:senate', (req, res) => {
   const state = req.params['state']
   const year = req.params['year']
   const senate = req.params['senate']
-  POOL.query(`
+  const query = `
     SELECT 'states/${state}' AS state,
            '${year}' AS year,
            '${senate}' AS name,
@@ -102,8 +376,56 @@ app.get('/states/:state/years/:year/senates/:senate', (req, res) => {
 
      WHERE sen.state = '${state}'
        AND sen.year = '${year}'
-       AND sen.name = '${senate}';
-  `).then(results => {
+       AND sen.name = '${senate}'
+  `
+  // console.log(query)
+  POOL.query(query).then(results => {
+    res.status(200).json(results.rows)
+  }).catch(error => {
+    res.status(500).json({ "error": error })
+  })
+})
+
+// Method: congressionals.list
+app.get('/states/:state/years/:year/congressionals', (req, res) => {
+  const state = req.params['state']
+  const year = req.params['year']
+  const within = req.query['within']
+  const intersects = req.query['intersects']
+  const contains = req.query['contains']
+  const ward = parseWardURI(req.query['ward'])
+  const query = `
+    SELECT 'states/${state}' AS state,
+           '${year}' AS year,
+           con.name AS name,
+           ST_AsGeoJSON(con.geometry) AS geometry
+
+      FROM congressionals AS con
+
+         ${(ward) ? `
+           JOIN wards AS wrd
+           ON con.name = wrd.congressional
+         ` : ''}
+
+     WHERE con.state = '${state}'
+       AND con.year = '${year}'
+     ${(within) ? `
+       AND ST_Within(con.geometry, ST_GeomFromGeoJSON('${within}'))
+     ` : ''}
+     ${(intersects) ? `
+       AND ST_Intersects(con.geometry, ST_GeomFromGeoJSON('${intersects}'))
+     ` : ''}
+     ${(contains) ? `
+       AND ST_Contains(con.geometry, ST_GeomFromGeoJSON('${contains}'))
+     ` : ''}
+     ${(ward) ? `
+       AND wrd.state = '${ward['state']}'
+       AND wrd.year = '${ward['year']}'
+       AND wrd.name = '${ward['name']}'
+     ` : ''}
+  `
+  // console.log(query)
+  POOL.query(query).then(results => {
     res.status(200).json(results.rows)
   }).catch(error => {
     res.status(500).json({ "error": error })
@@ -115,7 +437,7 @@ app.get('/states/:state/years/:year/congressionals/:congressional', (req, res) =
   const state = req.params['state']
   const year = req.params['year']
   const congressional = req.params['congressional']
-  POOL.query(`
+  const query = `
     SELECT 'states/${state}' AS state,
            '${year}' AS year,
            '${congressional}' AS name,
@@ -125,25 +447,32 @@ app.get('/states/:state/years/:year/congressionals/:congressional', (req, res) =
 
      WHERE con.state = '${state}'
        AND con.year = '${year}'
-       AND con.name = '${congressional}';
-  `).then(results => {
+       AND con.name = '${congressional}'
+  `
+  // console.log(query)
+  POOL.query(query).then(results => {
     res.status(200).json(results.rows)
   }).catch(error => {
     res.status(500).json({ "error": error })
   })
 })
 
-// Method: wards.get
-app.get('/states/:state/counties/:county/years/:year/wards/:ward', (req, res) => {
+// Method: wards.list
+app.get('/states/:state/years/:year/wards', (req, res) => {
   const state = req.params['state']
-  const county = req.params['county']
   const year = req.params['year']
-  const ward = req.params['ward']
-  POOL.query(`
+  const within = req.query['within']
+  const intersects = req.query['intersects']
+  const contains = req.query['contains']
+  const county = parseCountyURI(req.query['county'])
+  const assembly = parseAssemblyURI(req.query['assembly'])
+  const senate = parseSenateURI(req.query['senate'])
+  const congressional = parseCongressionalURI(req.query['congressional'])
+  const query = `
     SELECT 'states/${state}' AS state,
-           'states/${state}/counties/${county}' AS county,
            '${year}' AS year,
-           '${ward}' AS name,
+           wrd.name AS name,
+           CONCAT('states/${state}/counties/', wrd.county) AS county,
            CONCAT('states/${state}/years/${year}/assemblies/', wrd.assembly) AS assembly,
            CONCAT('states/${state}/years/${year}/senates/', wrd.senate) AS senate,
            CONCAT('states/${state}/years/${year}/congressionals/', wrd.congressional) AS congressional,
@@ -152,10 +481,67 @@ app.get('/states/:state/counties/:county/years/:year/wards/:ward', (req, res) =>
       FROM wards AS wrd
 
      WHERE wrd.state = '${state}'
-       AND wrd.county = '${county}'
        AND wrd.year = '${year}'
-       AND wrd.name = '${ward}';
-  `).then(results => {
+     ${(within) ? `
+       AND ST_Within(wrd.geometry, ST_GeomFromGeoJSON('${within}'))
+     ` : ''}
+     ${(intersects) ? `
+       AND ST_Intersects(wrd.geometry, ST_GeomFromGeoJSON('${intersects}'))
+     ` : ''}
+     ${(contains) ? `
+       AND ST_Contains(wrd.geometry, ST_GeomFromGeoJSON('${contains}'))
+     ` : ''}
+     ${(county) ? `
+       AND wrd.state = '${county['state']}'
+       AND wrd.county = '${county['name']}'
+     ` : ''}
+     ${(assembly) ? `
+       AND wrd.state = '${assembly['state']}'
+       AND wrd.year = '${assembly['year']}'
+       AND wrd.assembly = '${assembly['name']}'
+     ` : ''}
+     ${(senate) ? `
+       AND wrd.state = '${senate['state']}'
+       AND wrd.year = '${senate['year']}'
+       AND wrd.senate = '${senate['name']}'
+     ` : ''}
+     ${(congressional) ? `
+       AND wrd.state = '${congressional['state']}'
+       AND wrd.year = '${congressional['year']}'
+       AND wrd.congressional = '${congressional['name']}'
+     ` : ''}
+  `
+  // console.log(query)
+  POOL.query(query).then(results => {
+    res.status(200).json(results.rows)
+  }).catch(error => {
+    res.status(500).json({ "error": error })
+  })
+})
+
+// Method: wards.get
+app.get('/states/:state/years/:year/wards/:ward', (req, res) => {
+  const state = req.params['state']
+  const year = req.params['year']
+  const ward = req.params['ward']
+  const query = `
+    SELECT 'states/${state}' AS state,
+           '${year}' AS year,
+           '${ward}' AS name,
+           CONCAT('states/${state}/counties/', wrd.county) AS county,
+           CONCAT('states/${state}/years/${year}/assemblies/', wrd.assembly) AS assembly,
+           CONCAT('states/${state}/years/${year}/senates/', wrd.senate) AS senate,
+           CONCAT('states/${state}/years/${year}/congressionals/', wrd.congressional) AS congressional,
+           ST_AsGeoJSON(wrd.geometry) AS geometry
+
+      FROM wards AS wrd
+
+     WHERE wrd.state = '${state}'
+       AND wrd.year = '${year}'
+       AND wrd.name = '${ward}'
+  `
+  // console.log(query)
+  POOL.query(query).then(results => {
     res.status(200).json(results.rows)
   }).catch(error => {
     res.status(500).json({ "error": error })
@@ -167,12 +553,22 @@ app.get('/states/:state/races/:race/years/:year/votes', (req, res) => {
   const state = req.params['state']
   const race = req.params['race']
   const year = req.params['year']
-  switch (req.query['group']) {
-    case 'state':
-      POOL.query(`
+  const group = req.query['group']
+  const within = req.query['within']
+  const intersects = req.query['intersects']
+  const contains = req.query['contains']
+  const county = parseCountyURI(req.query['county'])
+  const assembly = parseAssemblyURI(req.query['assembly'])
+  const senate = parseSenateURI(req.query['senate'])
+  const congressional = parseCongressionalURI(req.query['congressional'])
+  const ward = parseWardURI(req.query['ward'])
+  switch (group) {
+    case 'state': {
+      const query = `
         SELECT 'states/${state}' AS state,
                '${race}' AS race,
                '${year}' AS year,
+               'states/${state}' AS group,
                vt.total AS total,
                vt.democrat AS democrat,
                vt.republican AS republican,
@@ -192,19 +588,32 @@ app.get('/states/:state/races/:race/years/:year/votes', (req, res) => {
                  GROUP BY vt.state) AS vt
               
                JOIN states AS st
-               ON vt.state = st.name;
-      `).then(results => {
+               ON vt.state = st.name
+
+         WHERE TRUE
+         ${(within) ? `
+           AND ST_Within(cty.geometry, ST_GeomFromGeoJSON('${within}'))
+         ` : ''}
+         ${(intersects) ? `
+           AND ST_Intersects(cty.geometry, ST_GeomFromGeoJSON('${intersects}'))
+         ` : ''}
+         ${(contains) ? `
+           AND ST_Contains(cty.geometry, ST_GeomFromGeoJSON('${contains}'))
+         ` : ''}
+      `
+      // console.log(query)
+      POOL.query(query).then(results => {
         res.status(200).json(results.rows)
       }).catch(error => {
         res.status(500).json({ "error": error })
       })
       break
-    case 'county':
-      POOL.query(`
+    } case 'county': {
+      const query = `
         SELECT 'states/${state}' AS state,
                '${race}' AS race,
                '${year}' AS year,
-               CONCAT('states/', cty.state, '/counties/', cty.name) AS county,
+               CONCAT('states/', cty.state, '/counties/', cty.name) AS group,
                vt.total AS total,
                vt.democrat AS democrat,
                vt.republican AS republican,
@@ -220,7 +629,6 @@ app.get('/states/:state/races/:race/years/:year/votes', (req, res) => {
 
                        JOIN wards AS wrd
                        ON vt.state = wrd.state
-                          AND vt.county = wrd.county
                           AND vt.ward_year = wrd.year
                           AND vt.ward = wrd.name
 
@@ -237,19 +645,46 @@ app.get('/states/:state/races/:race/years/:year/votes', (req, res) => {
               
                JOIN counties AS cty
                ON vt.state = cty.state
-                  AND vt.name = cty.name;
-      `).then(results => {
+                  AND vt.name = cty.name
+
+             ${(ward) ? `
+               JOIN wards AS wrd
+               ON cty.name = wrd.county
+             ` : ''}
+
+         WHERE TRUE
+         ${(within) ? `
+           AND ST_Within(cty.geometry, ST_GeomFromGeoJSON('${within}'))
+         ` : ''}
+         ${(intersects) ? `
+           AND ST_Intersects(cty.geometry, ST_GeomFromGeoJSON('${intersects}'))
+         ` : ''}
+         ${(contains) ? `
+           AND ST_Contains(cty.geometry, ST_GeomFromGeoJSON('${contains}'))
+         ` : ''}
+         ${(county) ? `
+           AND cty.state = '${county['state']}'
+           AND cty.name = '${county['name']}'
+         ` : ''}
+         ${(ward) ? `
+           AND wrd.state = '${ward['state']}'
+           AND wrd.year = '${ward['year']}'
+           AND wrd.name = '${ward['name']}'
+         ` : ''}
+      `
+      // console.log(query)
+      POOL.query(query).then(results => {
         res.status(200).json(results.rows)
       }).catch(error => {
         res.status(500).json({ "error": error })
       })
       break
-    case 'assembly':
-      POOL.query(`
+    } case 'assembly': {
+      const query = `
         SELECT 'states/${state}' AS state,
                '${race}' AS race,
                '${year}' AS year,
-               CONCAT('states/', asm.state, '/years/', asm.year, '/assemblies/', asm.name) AS assembly,
+               CONCAT('states/', asm.state, '/years/', asm.year, '/assemblies/', asm.name) AS group,
                vt.total AS total,
                vt.democrat AS democrat,
                vt.republican AS republican,
@@ -266,7 +701,6 @@ app.get('/states/:state/races/:race/years/:year/votes', (req, res) => {
 
                        JOIN wards AS wrd
                        ON vt.state = wrd.state
-                          AND vt.county = wrd.county
                           AND vt.ward_year = wrd.year
                           AND vt.ward = wrd.name
 
@@ -286,19 +720,47 @@ app.get('/states/:state/races/:race/years/:year/votes', (req, res) => {
                JOIN assemblies AS asm
                ON vt.state = asm.state
                   AND vt.year = asm.year
-                  AND vt.name = asm.name;
-      `).then(results => {
+                  AND vt.name = asm.name
+
+             ${(ward) ? `
+               JOIN wards AS wrd
+               ON asm.name = wrd.assembly
+             ` : ''}
+
+         WHERE TRUE
+         ${(within) ? `
+           AND ST_Within(asm.geometry, ST_GeomFromGeoJSON('${within}'))
+         ` : ''}
+         ${(intersects) ? `
+           AND ST_Intersects(asm.geometry, ST_GeomFromGeoJSON('${intersects}'))
+         ` : ''}
+         ${(contains) ? `
+           AND ST_Contains(asm.geometry, ST_GeomFromGeoJSON('${contains}'))
+         ` : ''}
+         ${(assembly) ? `
+           AND asm.state = '${assembly['state']}'
+           AND asm.year = '${assembly['year']}'
+           AND asm.name = '${assembly['name']}'
+         ` : ''}
+         ${(ward) ? `
+           AND wrd.state = '${ward['state']}'
+           AND wrd.year = '${ward['year']}'
+           AND wrd.name = '${ward['name']}'
+         ` : ''}
+      `
+      // console.log(query)
+      POOL.query(query).then(results => {
         res.status(200).json(results.rows)
       }).catch(error => {
         res.status(500).json({ "error": error })
       })
       break
-    case 'senate':
-      POOL.query(`
+    } case 'senate': {
+      const query = `
         SELECT 'states/${state}' AS state,
                '${race}' AS race,
                '${year}' AS year,
-               CONCAT('states/', sen.state, '/years/', sen.year, '/senates/', sen.name) AS senate,
+               CONCAT('states/', sen.state, '/years/', sen.year, '/senates/', sen.name) AS group,
                vt.total AS total,
                vt.democrat AS democrat,
                vt.republican AS republican,
@@ -315,7 +777,6 @@ app.get('/states/:state/races/:race/years/:year/votes', (req, res) => {
 
                        JOIN wards AS wrd
                        ON vt.state = wrd.state
-                          AND vt.county = wrd.county
                           AND vt.ward_year = wrd.year
                           AND vt.ward = wrd.name
 
@@ -335,19 +796,47 @@ app.get('/states/:state/races/:race/years/:year/votes', (req, res) => {
                JOIN senates AS sen
                ON vt.state = sen.state
                   AND vt.year = sen.year
-                  AND vt.name = sen.name;
-      `).then(results => {
+                  AND vt.name = sen.name
+
+             ${(ward) ? `
+               JOIN wards AS wrd
+               ON sen.name = wrd.senate
+             ` : ''}
+
+         WHERE TRUE
+         ${(within) ? `
+           AND ST_Within(sen.geometry, ST_GeomFromGeoJSON('${within}'))
+         ` : ''}
+         ${(intersects) ? `
+           AND ST_Intersects(sen.geometry, ST_GeomFromGeoJSON('${intersects}'))
+         ` : ''}
+         ${(contains) ? `
+           AND ST_Contains(sen.geometry, ST_GeomFromGeoJSON('${contains}'))
+         ` : ''}
+         ${(senate) ? `
+           AND sen.state = '${senate['state']}'
+           AND sen.year = '${senate['year']}'
+           AND sen.name = '${senate['name']}'
+         ` : ''}
+         ${(ward) ? `
+           AND wrd.state = '${ward['state']}'
+           AND wrd.year = '${ward['year']}'
+           AND wrd.name = '${ward['name']}'
+         ` : ''}
+      `
+      // console.log(query)
+      POOL.query(query).then(results => {
         res.status(200).json(results.rows)
       }).catch(error => {
         res.status(500).json({ "error": error })
       })
       break
-    case 'congressional':
-      POOL.query(`
+    } case 'congressional': {
+      const query = `
         SELECT 'states/${state}' AS state,
                '${race}' AS race,
                '${year}' AS year,
-               CONCAT('states/', con.state, '/years/', con.year, '/congressionals/', con.name) AS congressional,
+               CONCAT('states/', con.state, '/years/', con.year, '/congressionals/', con.name) AS group,
                vt.total AS total,
                vt.democrat AS democrat,
                vt.republican AS republican,
@@ -364,7 +853,6 @@ app.get('/states/:state/races/:race/years/:year/votes', (req, res) => {
 
                        JOIN wards AS wrd
                        ON vt.state = wrd.state
-                          AND vt.county = wrd.county
                           AND vt.ward_year = wrd.year
                           AND vt.ward = wrd.name
 
@@ -384,20 +872,48 @@ app.get('/states/:state/races/:race/years/:year/votes', (req, res) => {
                JOIN congressionals AS con
                ON vt.state = con.state
                   AND vt.year = con.year
-                  AND vt.name = con.name;
-      `).then(results => {
+                  AND vt.name = con.name
+
+             ${(ward) ? `
+               JOIN wards AS wrd
+               ON con.name = wrd.congressional
+             ` : ''}
+
+         WHERE TRUE
+         ${(within) ? `
+           AND ST_Within(con.geometry, ST_GeomFromGeoJSON('${within}'))
+         ` : ''}
+         ${(intersects) ? `
+           AND ST_Intersects(con.geometry, ST_GeomFromGeoJSON('${intersects}'))
+         ` : ''}
+         ${(contains) ? `
+           AND ST_Contains(con.geometry, ST_GeomFromGeoJSON('${contains}'))
+         ` : ''}
+         ${(congressional) ? `
+           AND con.state = '${congressional['state']}'
+           AND con.year = '${congressional['year']}'
+           AND con.name = '${congressional['name']}'
+         ` : ''}
+         ${(ward) ? `
+           AND wrd.state = '${ward['state']}'
+           AND wrd.year = '${ward['year']}'
+           AND wrd.name = '${ward['name']}'
+         ` : ''}
+      `
+      // console.log(query)
+      POOL.query(query).then(results => {
         res.status(200).json(results.rows)
       }).catch(error => {
         res.status(500).json({ "error": error })
       })
       break
-    case 'ward':
-    default:
-      POOL.query(`
+    } case 'ward':
+      default: {
+      const query = `
         SELECT 'states/${state}' AS state,
                '${race}' AS race,
                '${year}' AS year,
-               CONCAT('states/', wrd.state, '/counties/', wrd.county, '/years/', wrd.year, '/wards/', wrd.name) AS ward,
+               CONCAT('states/', wrd.state, '/years/', wrd.year, '/wards/', wrd.name) AS group,
                vt.total AS total,
                vt.democrat AS democrat,
                vt.republican AS republican,
@@ -407,19 +923,54 @@ app.get('/states/:state/races/:race/years/:year/votes', (req, res) => {
               
                JOIN wards AS wrd
                ON vt.state = wrd.state
-                  AND vt.county = wrd.county
                   AND vt.ward_year = wrd.year
                   AND vt.ward = wrd.name
 
          WHERE vt.state = '${state}'
            AND vt.race = '${race}'
-           AND vt.year = '${year}';
-      `).then(results => {
+           AND vt.year = '${year}'
+         ${(within) ? `
+           AND ST_Within(wrd.geometry, ST_GeomFromGeoJSON('${within}'))
+         ` : ''}
+         ${(intersects) ? `
+           AND ST_Intersects(wrd.geometry, ST_GeomFromGeoJSON('${intersects}'))
+         ` : ''}
+         ${(contains) ? `
+           AND ST_Contains(wrd.geometry, ST_GeomFromGeoJSON('${contains}'))
+         ` : ''}
+         ${(county) ? `
+           AND wrd.state = '${county['state']}'
+           AND wrd.county = '${county['name']}'
+         ` : ''}
+         ${(assembly) ? `
+           AND wrd.state = '${assembly['state']}'
+           AND wrd.year = '${assembly['year']}'
+           AND wrd.assembly = '${assembly['name']}'
+         ` : ''}
+         ${(senate) ? `
+           AND wrd.state = '${senate['state']}'
+           AND wrd.year = '${senate['year']}'
+           AND wrd.senate = '${senate['name']}'
+         ` : ''}
+         ${(congressional) ? `
+           AND wrd.state = '${congressional['state']}'
+           AND wrd.year = '${congressional['year']}'
+           AND wrd.congressional = '${congressional['name']}'
+         ` : ''}
+         ${(ward) ? `
+           AND wrd.state = '${ward['state']}'
+           AND wrd.year = '${ward['year']}'
+           AND wrd.name = '${ward['name']}'
+         ` : ''}
+      `
+      // console.log(query)
+      POOL.query(query).then(results => {
         res.status(200).json(results.rows)
       }).catch(error => {
         res.status(500).json({ "error": error })
       })
       break
+    }
   }
 })
 
