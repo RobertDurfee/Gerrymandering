@@ -497,6 +497,11 @@ const votesListSQL = params => {
                vt.total AS total,
                vt.democrat AS democrat,
                vt.republican AS republican,
+               CASE
+                 WHEN vt.democrat + vt.republican > 0
+                   THEN ((vt.democrat::real / (vt.democrat + vt.republican)) - 0.5) / 0.5
+                 ELSE 0
+               END AS competitiveness,
                ST_AsGeoJSON(st.geometry) AS geometry
 
           FROM (SELECT vt.state AS state,
@@ -535,6 +540,11 @@ const votesListSQL = params => {
                vt.total AS total,
                vt.democrat AS democrat,
                vt.republican AS republican,
+               CASE
+                 WHEN vt.democrat + vt.republican > 0
+                   THEN ((vt.democrat::real / (vt.democrat + vt.republican)) - 0.5) / 0.5
+                 ELSE 0
+               END AS competitiveness,
                ST_AsGeoJSON(cty.geometry) AS geometry
 
           FROM (SELECT cty.state AS state,
@@ -599,6 +609,11 @@ const votesListSQL = params => {
                vt.total AS total,
                vt.democrat AS democrat,
                vt.republican AS republican,
+               CASE
+                 WHEN vt.democrat + vt.republican > 0
+                   THEN ((vt.democrat::real / (vt.democrat + vt.republican)) - 0.5) / 0.5
+                 ELSE 0
+               END AS competitiveness,
                ST_AsGeoJSON(asm.geometry) AS geometry
 
           FROM (SELECT asm.state AS state,
@@ -668,6 +683,11 @@ const votesListSQL = params => {
                vt.total AS total,
                vt.democrat AS democrat,
                vt.republican AS republican,
+               CASE
+                 WHEN vt.democrat + vt.republican > 0
+                   THEN ((vt.democrat::real / (vt.democrat + vt.republican)) - 0.5) / 0.5
+                 ELSE 0
+               END AS competitiveness,
                ST_AsGeoJSON(sen.geometry) AS geometry
 
           FROM (SELECT sen.state AS state,
@@ -737,6 +757,11 @@ const votesListSQL = params => {
                vt.total AS total,
                vt.democrat AS democrat,
                vt.republican AS republican,
+               CASE
+                 WHEN vt.democrat + vt.republican > 0
+                   THEN ((vt.democrat::real / (vt.democrat + vt.republican)) - 0.5) / 0.5
+                 ELSE 0
+               END AS competitiveness,
                ST_AsGeoJSON(con.geometry) AS geometry
 
           FROM (SELECT con.state AS state,
@@ -808,6 +833,11 @@ const votesListSQL = params => {
                vt.total AS total,
                vt.democrat AS democrat,
                vt.republican AS republican,
+               CASE
+                 WHEN vt.democrat + vt.republican > 0
+                   THEN ((vt.democrat::real / (vt.democrat + vt.republican)) - 0.5) / 0.5
+                 ELSE 0
+               END AS competitiveness,
                ST_AsGeoJSON(wrd.geometry) AS geometry
 
           FROM votes AS vt
