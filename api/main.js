@@ -1386,6 +1386,11 @@ const getMethod = (buildSQL, req, res) => {
 
 const app = express()
 
+app.use((_, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "https://gm.durfee.io")
+  return next()
+})
+
 app.use(express.json())
 app.set('json spaces', 2)
 
