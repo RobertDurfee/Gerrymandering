@@ -582,8 +582,7 @@ CREATE TABLE gm.populations (
     american_indian  INTEGER NOT NULL,
     asian            INTEGER NOT NULL,
     pacific_islander INTEGER NOT NULL,
-    hispanic         INTEGER NOT NULL,
-    other            INTEGER NOT NULL
+    hispanic         INTEGER NOT NULL
 );
 ''')
 
@@ -603,7 +602,6 @@ populations_meta = [{
     'asian_property': 'ASIAN18',
     'pacific_islander_property': 'PISLAND18',
     'hispanic_property': 'HISPANIC18',
-    'other_property': 'OTHER18',
     'geojson': '../data/simplified/2018-2012_Election_Data_with_2011_Wards.geojson',
 }]
 
@@ -619,9 +617,8 @@ INSERT INTO gm.populations (
     american_indian,
     asian,
     pacific_islander,
-    hispanic,
-    other
-) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+    hispanic
+) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
 '''
 
 for population_meta in populations_meta:
@@ -640,7 +637,6 @@ for population_meta in populations_meta:
             feature['properties'][population_meta['asian_property']],
             feature['properties'][population_meta['pacific_islander_property']],
             feature['properties'][population_meta['hispanic_property']],
-            feature['properties'][population_meta['other_property']],
         )
         cur.execute(query, population)
 
