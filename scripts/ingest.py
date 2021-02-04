@@ -251,15 +251,15 @@ CREATE TABLE gm.wards (
                   FOREIGN KEY (state)
                    REFERENCES gm.states(name),
 
+    year          CHAR(4)  NOT NULL,
+    name          VARCHAR  NOT NULL,
+
+                  UNIQUE (state, year, name),
+
     county        VARCHAR  NOT NULL,
 
                   FOREIGN KEY (state, county)
                    REFERENCES gm.counties(state, name),
-
-    year          CHAR(4)  NOT NULL,
-    name          VARCHAR  NOT NULL,
-
-                  UNIQUE (state, county, year, name),
 
     assembly      VARCHAR  NOT NULL,
 
@@ -301,9 +301,9 @@ wards_meta = [{
 query = '''
 INSERT INTO gm.wards (
     state,
-    county,
     year,
     name,
+    county,
     assembly,
     senate,
     congressional,
@@ -317,9 +317,9 @@ for ward_meta in wards_meta:
     for feature in geojson['features']:
         ward = (
             ward_meta['state'],
-            sanitize(feature['properties'][ward_meta['county_property']]),
             ward_meta['year'],
-            sanitize(feature['properties'][ward_meta['name_property']]),
+            sanitize(feature['properties'][ward_meta['county_property']]) + '_' + sanitize(feature['properties'][ward_meta['name_property']]),
+            sanitize(feature['properties'][ward_meta['county_property']]),
             sanitize(feature['properties'][ward_meta['assembly_property']]),
             sanitize(feature['properties'][ward_meta['senate_property']]),
             sanitize(feature['properties'][ward_meta['congressional_property']]),
@@ -344,14 +344,13 @@ CREATE TABLE gm.votes (
 
     race       VARCHAR NOT NULL,
     year       CHAR(4) NOT NULL,
-    county     VARCHAR NOT NULL,
     ward_year  CHAR(4) NOT NULL,
     ward       VARCHAR NOT NULL,
 
-               UNIQUE (state, race, year, county, ward_year, ward),
+               UNIQUE (state, race, year, ward_year, ward),
 
-               FOREIGN KEY (state, county, ward_year, ward)
-                REFERENCES gm.wards(state, county, year, name),
+               FOREIGN KEY (state, ward_year, ward)
+                REFERENCES gm.wards(state, year, name),
 
     total      INTEGER NOT NULL,
     democrat   INTEGER NOT NULL,
@@ -360,7 +359,7 @@ CREATE TABLE gm.votes (
 ''')
 
 cur.execute('CREATE INDEX votes_state_fkey ON gm.votes(state);')
-cur.execute('CREATE INDEX votes_state_county_ward_year_ward_fkey ON gm.votes(state, county, ward_year, ward);')
+cur.execute('CREATE INDEX votes_state_ward_year_ward_fkey ON gm.votes(state, ward_year, ward);')
 
 votes_meta = [{
     'state': 'wisconsin',
@@ -527,13 +526,12 @@ INSERT INTO gm.votes (
     state,
     race,
     year,
-    county,
     ward_year,
     ward,
     total,
     democrat,
     republican
-) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
+) VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
 '''
 
 for vote_meta in votes_meta:
@@ -546,9 +544,8 @@ for vote_meta in votes_meta:
                     vote_meta['state'],
                     race,
                     year['year'],
-                    sanitize(feature['properties'][vote_meta['county_property']]),
                     vote_meta['ward_year'],
-                    sanitize(feature['properties'][vote_meta['ward_property']]),
+                    sanitize(feature['properties'][vote_meta['county_property']]) + '_' + sanitize(feature['properties'][vote_meta['ward_property']]),
                     feature['properties'][year['total_property']],
                     feature['properties'][year['democrat_property']],
                     feature['properties'][year['republican_property']],
@@ -571,14 +568,13 @@ CREATE TABLE gm.populations (
                       REFERENCES gm.states(name),
 
     year             CHAR(4) NOT NULL,
-    county           VARCHAR NOT NULL,
     ward_year        CHAR(4) NOT NULL,
     ward             VARCHAR NOT NULL,
 
-                     UNIQUE (state, year, county, ward_year, ward),
+                     UNIQUE (state, year, ward_year, ward),
 
-                     FOREIGN KEY (state, county, ward_year, ward)
-                      REFERENCES gm.wards(state, county, year, name),
+                     FOREIGN KEY (state, ward_year, ward)
+                      REFERENCES gm.wards(state, year, name),
 
     total            INTEGER NOT NULL,
     white            INTEGER NOT NULL,
@@ -592,7 +588,7 @@ CREATE TABLE gm.populations (
 ''')
 
 cur.execute('CREATE INDEX populations_state_fkey ON gm.populations(state);')
-cur.execute('CREATE INDEX populations_state_county_ward_year_ward_fkey ON gm.populations(state, county, ward_year, ward);')
+cur.execute('CREATE INDEX populations_state_ward_year_ward_fkey ON gm.populations(state, ward_year, ward);')
 
 populations_meta = [{
     'state': 'wisconsin',
@@ -615,7 +611,6 @@ query = '''
 INSERT INTO gm.populations (
     state,
     year,
-    county,
     ward_year,
     ward,
     total,
@@ -626,7 +621,7 @@ INSERT INTO gm.populations (
     pacific_islander,
     hispanic,
     other
-) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
 '''
 
 for population_meta in populations_meta:
@@ -636,9 +631,8 @@ for population_meta in populations_meta:
         population = (
             population_meta['state'],
             population_meta['year'],
-            sanitize(feature['properties'][population_meta['county_property']]),
             population_meta['ward_year'],
-            sanitize(feature['properties'][population_meta['ward_property']]),
+            sanitize(feature['properties'][population_meta['county_property']]) + '_' + sanitize(feature['properties'][population_meta['ward_property']]),
             feature['properties'][population_meta['total_property']],
             feature['properties'][population_meta['white_property']],
             feature['properties'][population_meta['black_property']],
