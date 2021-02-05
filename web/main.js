@@ -2,6 +2,27 @@ const express = require('express')
 const http = require('http')
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Helper Functions
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const prettify = name => {
+  if (name) {
+    const words = name.split('_')
+    for (let i = 0; i < words.length; i++) {
+      words[i] = words[i][0].toUpperCase() + words[i].slice(1)
+    }
+    return words.join(' ')
+  }
+}
+
+const district = name => {
+  if (name === 'Assembly' || name === 'Senate' || name === 'Congressional') {
+    return name + ' District'
+  }
+  return name
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // App Configuration
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -17,11 +38,15 @@ app.get('/states/:state/races/:race/years/:year/votes', (req, res) => {
   const state = req.params['state']
   const race = req.params['race']
   const year = req.params['year']
-  const base = req.query['base']
+  const base = req.query['base'] || 'ward'
   const overlay = req.query['overlay']
 
   res.render('votes', {
-    title: `${state} ${race} ${year} ${base} ${overlay}`,
+    state: prettify(state),
+    year: year,
+    race: prettify(race),
+    base: district(prettify(base)),
+    overlay: district(prettify(overlay)),
     baseURI: `/states/${state}/races/${race}/years/${year}/votes?group=${base}`,
     overlayURI: `/states/${state}/races/${race}/years/${year}/votes?group=${overlay}`,
   })

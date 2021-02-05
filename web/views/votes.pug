@@ -4,7 +4,7 @@ html(lang='en')
     meta(charset='utf-8')
     meta(name='viewport', content='initial-scale=1, maximum-scale=1, user-scalable=no')
 
-    title #{title}
+    title #{state} #{year} Election for #{race}
     
     style(type='text/css').
       html,
@@ -15,18 +15,163 @@ html(lang='en')
         height: 100%;
         width: 100%;
       }
+      .democrat {
+        color: #019BD8;
+      }
+      .republican {
+        color: #D81C28;
+      }
 
     link(rel='stylesheet', href='https://js.arcgis.com/4.18/esri/themes/light/main.css')
     script(src='https://js.arcgis.com/4.18/')
 
+    script(type='text/arcade', id='expression-group').
+      var uri = $feature.group
+      var name = Split(uri, '/')[-1]
+      var words = Split(name, '_')
+      for (var i in words) {
+          var letters = Split(words[i], '')
+          words[i] = Concatenate(Splice(Upper(letters[0]), Slice(letters, 1)))
+      }
+      var pretty = Concatenate(words, ' ')
+      return pretty
+
+    script(type='text/arcade', id='expression-state').
+      var uri = $feature.state
+      var name = Split(uri, '/')[-1]
+      var words = Split(name, '_')
+      for (var i in words) {
+          var letters = Split(words[i], '')
+          words[i] = Concatenate(Splice(Upper(letters[0]), Slice(letters, 1)))
+      }
+      var pretty = Concatenate(words, ' ')
+      return pretty
+
+    script(type='text/arcade', id='expression-race').
+      var name = $feature.race
+      var words = Split(name, '_')
+      for (var i in words) {
+          var letters = Split(words[i], '')
+          words[i] = Concatenate(Splice(Upper(letters[0]), Slice(letters, 1)))
+      }
+      var pretty = Concatenate(words, ' ')
+      return pretty
+
+    script(type='text/arcade', id='expression-majority').
+      var democrat = Number($feature.democrat)
+      var republican = Number($feature.republican)
+      if (democrat > republican) {
+        return Round(democrat / (democrat + republican) * 100, 2) + '% Democrat'
+      } else if (republican > democrat) {
+        return Round(republican / (democrat + republican) * 100, 2) + '% Republican'
+      } else {
+        return 'Split'
+      }
+
+    script(type='text/arcade', id='expression-majority-party').
+      var democrat = Number($feature.democrat)
+      var republican = Number($feature.republican)
+      if (democrat > republican) {
+        return 'democrat'
+      } else if (republican > democrat) {
+        return 'republican'
+      }
+ 
     script(type='text/javascript').
-      require(['esri/config', 'esri/Map', 'esri/views/MapView', 'esri/layers/GeoJSONLayer'], (config, Map, MapView, GeoJSONLayer) => {
+      require(['esri/config', 'esri/Map', 'esri/views/MapView', 'esri/layers/GeoJSONLayer', 'esri/widgets/Legend'], (config, Map, MapView, GeoJSONLayer, Legend) => {
         config.apiKey = 'AAPKe1f7550caecd47ba81486e59e249ed10fGrs0zUkJXthtgBnHTifoQpq0L3_1QIMHayYYq7b0DuGM7pH9pXhBaEH-UXAHjYV'
+
+        const fieldInfos = [{
+          fieldName: 'total',
+          format: {
+            digitSeparator: true,
+          },
+        }, {
+          fieldName: 'democrat',
+          format: {
+            digitSeparator: true,
+          },
+        }, {
+          fieldName: 'republican',
+          format: {
+            digitSeparator: true,
+          },
+        }, {
+          fieldName: 'area',
+          format: {
+            places: 2,
+            digitSeparator: true,
+          },
+        }, {
+          fieldName: 'perimeter',
+          format: {
+            places: 2,
+            digitSeparator: true,
+          },
+        }, {
+          fieldName: 'expression/npi',
+          format: {
+            places: 2,
+          },
+        }]
+
+        const expressionInfos = [{
+          name: 'group',
+          title: 'group',
+          expression: document.getElementById('expression-group').text,
+        }, {
+          name: 'state',
+          title: 'state',
+          expression: document.getElementById('expression-state').text,
+        }, {
+          name: 'race',
+          title: 'race',
+          expression: document.getElementById('expression-race').text,
+        }, {
+          name: 'majority',
+          title: 'majority',
+          expression: document.getElementById('expression-majority').text,
+        }, {
+          name: 'majority_party',
+          title: 'majority_party',
+          expression: document.getElementById('expression-majority-party').text,
+        }, {
+          name: 'npi',
+          title: 'npi',
+          expression: '$feature.npi * 100',
+        }]
 
         const base = new GeoJSONLayer({
           url: 'https://api.gm.durfee.io#{baseURI}',
+          title: '#{state} #{year} Election for #{race}',
           popupTemplate: {
-            title: 'base',
+            title: '#{base}: {expression/group}',
+            content: [{
+              type: 'text',
+              text: `
+                <b>State</b>: {expression/state}<br>
+                <b>Race</b>: {expression/race}<br>
+                <b>Year</b>: {year}<br>
+                <b>#{base}</b>: {expression/group}
+              `
+            }, {
+              type: 'text',
+              text: `
+                <b>Total</b>: {total} votes<br>
+                <b>Democrat</b>: {democrat} votes<br>
+                <b>Republican</b>: {republican} votes<br>
+                <b>Majority</b>: {expression/majority} <span class="{expression/majority_party}">■</span>
+              `
+            }, {
+              type: 'text',
+              text: `
+                <b>Area</b>: {area} sq mi<br>
+                <b>Perimeter</b>: {perimeter} mi<br>
+                <b>Normalized Perimeter Index</b>: {expression/npi}%
+              `
+            }],
+            fieldInfos: fieldInfos,
+            expressionInfos: expressionInfos,
           },
           renderer: {
             type: 'simple',
@@ -36,18 +181,24 @@ html(lang='en')
                 width: '0px',
               },
             },
+            label: 'Percent of Votes for Each Party',
             visualVariables: [{
               type: 'color',
               field: 'competitiveness',
+              legendOptions: {
+                title: '',
+              },
               stops: [{
                 value: -1.0,
                 color: '#D81C28',
+                label: '100% Republican',
               }, {
                 value: 0.0,
                 color: '#FFFFFF',
               }, {
                 value: 1.0,
                 color: '#019BD8',
+                label: '100% Democrat',
               }],
             }],
           },
@@ -55,11 +206,39 @@ html(lang='en')
 
         const overlay = new GeoJSONLayer({
           url: 'https://api.gm.durfee.io#{overlayURI}',
+          title: '#{state} #{overlay}s',
           popupTemplate: {
-            title: 'overlay',
+            title: '#{overlay}: {expression/group}',
+            content: [{
+              type: 'text',
+              text: `
+                <b>State</b>: {expression/state}<br>
+                <b>Race</b>: {expression/race}<br>
+                <b>Year</b>: {year}<br>
+                <b>#{overlay}</b>: {expression/group}
+              `
+            }, {
+              type: 'text',
+              text: `
+                <b>Total</b>: {total} votes<br>
+                <b>Democrat</b>: {democrat} votes<br>
+                <b>Republican</b>: {republican} votes<br>
+                <b>Majority</b>: {expression/majority} <span class="{expression/majority_party}">■</span>
+              `
+            }, {
+              type: 'text',
+              text: `
+                <b>Area</b>: {area} sq mi<br>
+                <b>Perimeter</b>: {perimeter} mi<br>
+                <b>Normalized Perimeter Index</b>: {expression/npi}%
+              `
+            }],
+            fieldInfos: fieldInfos,
+            expressionInfos: expressionInfos,
           },
           renderer: {
             type: 'simple',
+            label: '#{overlay}',
             symbol: {
               type: 'simple-fill',
               color: [255, 255, 255, 0.0],
@@ -81,7 +260,19 @@ html(lang='en')
           center: [-89.5, 44.5],
           zoom: 6,
           container: 'view',
+          popup: {
+            dockEnabled: true,
+            dockOptions: {
+              breakpoint: false,
+            },
+          },
         })
+
+        view.ui.add(new Legend({
+            view: view,
+          }),
+          'bottom-left'
+        )
       })
 
   body
