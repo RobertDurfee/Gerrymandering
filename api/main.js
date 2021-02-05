@@ -156,6 +156,8 @@ const logResponse = (id, sql, res, body) => {
 const statesListSQL = params => {
   return `
     SELECT st.name AS name,
+           ST_Area(st.geometry, true) / 2589988.11 AS area,
+           ST_Perimeter(st.geometry, true) / 1609.34 AS perimeter,
            ST_AsGeoJSON(st.geometry) AS geometry
 
       FROM states AS st
@@ -225,6 +227,8 @@ const statesListSQL = params => {
 const statesGetSQL = params => {
   return `
     SELECT '${params['state']}' AS name,
+           ST_Area(st.geometry, true) / 2589988.11 AS area,
+           ST_Perimeter(st.geometry, true) / 1609.34 AS perimeter,
            ST_AsGeoJSON(st.geometry) AS geometry
 
       FROM states AS st
@@ -237,6 +241,8 @@ const countiesListSQL = params => {
   return `
     SELECT '/states/${params['state']}' AS state,
            cty.name AS name,
+           ST_Area(cty.geometry, true) / 2589988.11 AS area,
+           ST_Perimeter(cty.geometry, true) / 1609.34 AS perimeter,
            ST_AsGeoJSON(cty.geometry) AS geometry
 
       FROM counties AS cty
@@ -268,6 +274,8 @@ const countiesGetSQL = params => {
   return `
     SELECT '/states/${params['state']}' AS state,
            '${params['county']}' AS name,
+           ST_Area(cty.geometry, true) / 2589988.11 AS area,
+           ST_Perimeter(cty.geometry, true) / 1609.34 AS perimeter,
            ST_AsGeoJSON(cty.geometry) AS geometry
 
       FROM counties AS cty
@@ -282,6 +290,8 @@ const assembliesListSQL = params => {
     SELECT '/states/${params['state']}' AS state,
            '${params['year']}' AS year,
            asm.name AS name,
+           ST_Area(asm.geometry, true) / 2589988.11 AS area,
+           ST_Perimeter(asm.geometry, true) / 1609.34 AS perimeter,
            ST_AsGeoJSON(asm.geometry) AS geometry
 
       FROM assemblies AS asm
@@ -315,6 +325,8 @@ const assembliesGetSQL = params => {
     SELECT '/states/${params['state']}' AS state,
            '${params['year']}' AS year,
            '${params['assembly']}' AS name,
+           ST_Area(asm.geometry, true) / 2589988.11 AS area,
+           ST_Perimeter(asm.geometry, true) / 1609.34 AS perimeter,
            ST_AsGeoJSON(asm.geometry) AS geometry
 
       FROM assemblies AS asm
@@ -330,6 +342,8 @@ const senatesListSQL = params => {
     SELECT '/states/${params['state']}' AS state,
            '${params['year']}' AS year,
            sen.name AS name,
+           ST_Area(sen.geometry, true) / 2589988.11 AS area,
+           ST_Perimeter(sen.geometry, true) / 1609.34 AS perimeter,
            ST_AsGeoJSON(sen.geometry) AS geometry
 
       FROM senates AS sen
@@ -363,6 +377,8 @@ const senatesGetSQL = params => {
     SELECT '/states/${params['state']}' AS state,
            '${params['year']}' AS year,
            '${params['senate']}' AS name,
+           ST_Area(sen.geometry, true) / 2589988.11 AS area,
+           ST_Perimeter(sen.geometry, true) / 1609.34 AS perimeter,
            ST_AsGeoJSON(sen.geometry) AS geometry
 
       FROM senates AS sen
@@ -378,6 +394,8 @@ const congressionalsListSQL = params => {
     SELECT 'states/${params['state']}' AS state,
            '${params['year']}' AS year,
            con.name AS name,
+           ST_Area(con.geometry, true) / 2589988.11 AS area,
+           ST_Perimeter(con.geometry, true) / 1609.34 AS perimeter,
            ST_AsGeoJSON(con.geometry) AS geometry
 
       FROM congressionals AS con
@@ -411,6 +429,8 @@ const congressionalsGetSQL = params => {
     SELECT '/states/${params['state']}' AS state,
            '${params['year']}' AS year,
            '${params['congressional']}' AS name,
+           ST_Area(con.geometry, true) / 2589988.11 AS area,
+           ST_Perimeter(con.geometry, true) / 1609.34 AS perimeter,
            ST_AsGeoJSON(con.geometry) AS geometry
 
       FROM congressionals AS con
@@ -430,6 +450,8 @@ const wardsListSQL = params => {
            CONCAT('/states/${params['state']}/years/${params['year']}/assemblies/', wrd.assembly) AS assembly,
            CONCAT('/states/${params['state']}/years/${params['year']}/senates/', wrd.senate) AS senate,
            CONCAT('/states/${params['state']}/years/${params['year']}/congressionals/', wrd.congressional) AS congressional,
+           ST_Area(wrd.geometry, true) / 2589988.11 AS area,
+           ST_Perimeter(wrd.geometry, true) / 1609.34 AS perimeter,
            ST_AsGeoJSON(wrd.geometry) AS geometry
 
       FROM wards AS wrd
@@ -476,6 +498,8 @@ const wardsGetSQL = params => {
            CONCAT('/states/${params['state']}/years/${params['year']}/assemblies/', wrd.assembly) AS assembly,
            CONCAT('/states/${params['state']}/years/${params['year']}/senates/', wrd.senate) AS senate,
            CONCAT('/states/${params['state']}/years/${params['year']}/congressionals/', wrd.congressional) AS congressional,
+           ST_Area(wrd.geometry, true) / 2589988.11 AS area,
+           ST_Perimeter(wrd.geometry, true) / 1609.34 AS perimeter,
            ST_AsGeoJSON(wrd.geometry) AS geometry
 
       FROM wards AS wrd
@@ -502,6 +526,8 @@ const votesListSQL = params => {
                    THEN ((vt.democrat::real / (vt.democrat + vt.republican)) - 0.5) / 0.5
                  ELSE 0
                END AS competitiveness,
+               ST_Area(st.geometry, true) / 2589988.11 AS area,
+               ST_Perimeter(st.geometry, true) / 1609.34 AS perimeter,
                ST_AsGeoJSON(st.geometry) AS geometry
 
           FROM (SELECT vt.state AS state,
@@ -545,6 +571,8 @@ const votesListSQL = params => {
                    THEN ((vt.democrat::real / (vt.democrat + vt.republican)) - 0.5) / 0.5
                  ELSE 0
                END AS competitiveness,
+               ST_Area(cty.geometry, true) / 2589988.11 AS area,
+               ST_Perimeter(cty.geometry, true) / 1609.34 AS perimeter,
                ST_AsGeoJSON(cty.geometry) AS geometry
 
           FROM (SELECT cty.state AS state,
@@ -614,6 +642,8 @@ const votesListSQL = params => {
                    THEN ((vt.democrat::real / (vt.democrat + vt.republican)) - 0.5) / 0.5
                  ELSE 0
                END AS competitiveness,
+               ST_Area(asm.geometry, true) / 2589988.11 AS area,
+               ST_Perimeter(asm.geometry, true) / 1609.34 AS perimeter,
                ST_AsGeoJSON(asm.geometry) AS geometry
 
           FROM (SELECT asm.state AS state,
@@ -688,6 +718,8 @@ const votesListSQL = params => {
                    THEN ((vt.democrat::real / (vt.democrat + vt.republican)) - 0.5) / 0.5
                  ELSE 0
                END AS competitiveness,
+               ST_Area(sen.geometry, true) / 2589988.11 AS area,
+               ST_Perimeter(sen.geometry, true) / 1609.34 AS perimeter,
                ST_AsGeoJSON(sen.geometry) AS geometry
 
           FROM (SELECT sen.state AS state,
@@ -762,6 +794,8 @@ const votesListSQL = params => {
                    THEN ((vt.democrat::real / (vt.democrat + vt.republican)) - 0.5) / 0.5
                  ELSE 0
                END AS competitiveness,
+               ST_Area(con.geometry, true) / 2589988.11 AS area,
+               ST_Perimeter(con.geometry, true) / 1609.34 AS perimeter,
                ST_AsGeoJSON(con.geometry) AS geometry
 
           FROM (SELECT con.state AS state,
@@ -838,6 +872,8 @@ const votesListSQL = params => {
                    THEN ((vt.democrat::real / (vt.democrat + vt.republican)) - 0.5) / 0.5
                  ELSE 0
                END AS competitiveness,
+               ST_Area(wrd.geometry, true) / 2589988.11 AS area,
+               ST_Perimeter(wrd.geometry, true) / 1609.34 AS perimeter,
                ST_AsGeoJSON(wrd.geometry) AS geometry
 
           FROM votes AS vt
@@ -903,6 +939,8 @@ const populationsListSQL = params => {
                pop.asian AS asian,
                pop.pacific_islander AS pacific_islander,
                pop.hispanic AS hispanic,
+               ST_Area(st.geometry, true) / 2589988.11 AS area,
+               ST_Perimeter(st.geometry, true) / 1609.34 AS perimeter,
                ST_AsGeoJSON(st.geometry) AS geometry
 
           FROM (SELECT pop.state AS state,
@@ -947,6 +985,8 @@ const populationsListSQL = params => {
                pop.asian AS asian,
                pop.pacific_islander AS pacific_islander,
                pop.hispanic AS hispanic,
+               ST_Area(cty.geometry, true) / 2589988.11 AS area,
+               ST_Perimeter(cty.geometry, true) / 1609.34 AS perimeter,
                ST_AsGeoJSON(cty.geometry) AS geometry
 
           FROM (SELECT cty.state AS state,
@@ -1017,6 +1057,8 @@ const populationsListSQL = params => {
                pop.asian AS asian,
                pop.pacific_islander AS pacific_islander,
                pop.hispanic AS hispanic,
+               ST_Area(asm.geometry, true) / 2589988.11 AS area,
+               ST_Perimeter(asm.geometry, true) / 1609.34 AS perimeter,
                ST_AsGeoJSON(asm.geometry) AS geometry
 
           FROM (SELECT asm.state AS state,
@@ -1092,6 +1134,8 @@ const populationsListSQL = params => {
                pop.asian AS asian,
                pop.pacific_islander AS pacific_islander,
                pop.hispanic AS hispanic,
+               ST_Area(sen.geometry, true) / 2589988.11 AS area,
+               ST_Perimeter(sen.geometry, true) / 1609.34 AS perimeter,
                ST_AsGeoJSON(sen.geometry) AS geometry
 
           FROM (SELECT sen.state AS state,
@@ -1167,6 +1211,8 @@ const populationsListSQL = params => {
                pop.asian AS asian,
                pop.pacific_islander AS pacific_islander,
                pop.hispanic AS hispanic,
+               ST_Area(con.geometry, true) / 2589988.11 AS area,
+               ST_Perimeter(con.geometry, true) / 1609.34 AS perimeter,
                ST_AsGeoJSON(con.geometry) AS geometry
 
           FROM (SELECT con.state AS state,
@@ -1244,6 +1290,8 @@ const populationsListSQL = params => {
                pop.asian AS asian,
                pop.pacific_islander AS pacific_islander,
                pop.hispanic AS hispanic,
+               ST_Area(wrd.geometry, true) / 2589988.11 AS area,
+               ST_Perimeter(wrd.geometry, true) / 1609.34 AS perimeter,
                ST_AsGeoJSON(wrd.geometry) AS geometry
 
           FROM populations AS pop
