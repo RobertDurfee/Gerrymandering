@@ -153,6 +153,10 @@ const logResponse = (id, sql, res, body) => {
 // Queries
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// Surprise! No validation of SQL parameters! :O Feel free to take advantage of this and see what data you can get.
+// Though, it might just be easier to simply run: `psql -h api.gm.durfee.io -p 41689 -U gm_api -d gm` from your terminal
+// and execute your queries that way... :)
+
 const statesListSQL = params => {
   return `
     SELECT st.name AS name,
