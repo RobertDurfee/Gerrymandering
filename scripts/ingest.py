@@ -20,11 +20,15 @@ cur.execute('DROP TABLE IF EXISTS gm.states CASCADE;')
 
 cur.execute('''
 CREATE TABLE gm.states (
-    name     VARCHAR  NOT NULL,
+    name      VARCHAR  NOT NULL,
 
-             UNIQUE (name),
+              UNIQUE (name),
 
-    geometry GEOMETRY NOT NULL
+    geometry  GEOMETRY NOT NULL,
+
+    area      REAL GENERATED ALWAYS AS (ST_Area(geometry, true) / 2589988.11) STORED,
+    perimeter REAL GENERATED ALWAYS AS (ST_Perimeter(geometry, true) / 1609.34) STORED,
+    npi       REAL GENERATED ALWAYS AS ((2 * SQRT(PI() * ST_Area(geometry, true))) / ST_Perimeter(geometry, true)) STORED
 );
 ''')
 
@@ -57,16 +61,20 @@ cur.execute('DROP TABLE IF EXISTS gm.counties CASCADE;')
 
 cur.execute('''
 CREATE TABLE gm.counties (
-    state    VARCHAR  NOT NULL,
+    state     VARCHAR  NOT NULL,
 
-             FOREIGN KEY (state)
-              REFERENCES gm.states(name),
+              FOREIGN KEY (state)
+               REFERENCES gm.states(name),
 
-    name     VARCHAR  NOT NULL,
+    name      VARCHAR  NOT NULL,
 
-             UNIQUE (state, name),
+              UNIQUE (state, name),
 
-    geometry GEOMETRY NOT NULL
+    geometry  GEOMETRY NOT NULL,
+
+    area      REAL GENERATED ALWAYS AS (ST_Area(geometry, true) / 2589988.11) STORED,
+    perimeter REAL GENERATED ALWAYS AS (ST_Perimeter(geometry, true) / 1609.34) STORED,
+    npi       REAL GENERATED ALWAYS AS ((2 * SQRT(PI() * ST_Area(geometry, true))) / ST_Perimeter(geometry, true)) STORED
 );
 ''')
 
@@ -102,17 +110,21 @@ cur.execute('DROP TABLE IF EXISTS gm.assemblies CASCADE;')
 
 cur.execute('''
 CREATE TABLE gm.assemblies (
-    state    VARCHAR  NOT NULL,
+    state     VARCHAR  NOT NULL,
 
-             FOREIGN KEY (state)
-              REFERENCES gm.states(name),
+              FOREIGN KEY (state)
+               REFERENCES gm.states(name),
 
-    year     CHAR(4)  NOT NULL,
-    name     VARCHAR  NOT NULL,
+    year      CHAR(4)  NOT NULL,
+    name      VARCHAR  NOT NULL,
 
-             UNIQUE (state, year, name),
+              UNIQUE (state, year, name),
 
-    geometry GEOMETRY NOT NULL
+    geometry  GEOMETRY NOT NULL,
+
+    area      REAL GENERATED ALWAYS AS (ST_Area(geometry, true) / 2589988.11) STORED,
+    perimeter REAL GENERATED ALWAYS AS (ST_Perimeter(geometry, true) / 1609.34) STORED,
+    npi       REAL GENERATED ALWAYS AS ((2 * SQRT(PI() * ST_Area(geometry, true))) / ST_Perimeter(geometry, true)) STORED
 );
 ''')
 
@@ -150,17 +162,21 @@ cur.execute('DROP TABLE IF EXISTS gm.senates CASCADE;')
 
 cur.execute('''
 CREATE TABLE gm.senates (
-    state    VARCHAR  NOT NULL,
+    state     VARCHAR  NOT NULL,
 
-             FOREIGN KEY (state)
-              REFERENCES gm.states(name),
+              FOREIGN KEY (state)
+               REFERENCES gm.states(name),
 
-    year     CHAR(4)  NOT NULL,
-    name     VARCHAR  NOT NULL,
+    year      CHAR(4)  NOT NULL,
+    name      VARCHAR  NOT NULL,
 
-             UNIQUE (state, year, name),
+              UNIQUE (state, year, name),
 
-    geometry GEOMETRY NOT NULL
+    geometry  GEOMETRY NOT NULL,
+
+    area      REAL GENERATED ALWAYS AS (ST_Area(geometry, true) / 2589988.11) STORED,
+    perimeter REAL GENERATED ALWAYS AS (ST_Perimeter(geometry, true) / 1609.34) STORED,
+    npi       REAL GENERATED ALWAYS AS ((2 * SQRT(PI() * ST_Area(geometry, true))) / ST_Perimeter(geometry, true)) STORED
 );
 ''')
 
@@ -198,17 +214,21 @@ cur.execute('DROP TABLE IF EXISTS gm.congressionals CASCADE;')
 
 cur.execute('''
 CREATE TABLE gm.congressionals (
-    state    VARCHAR  NOT NULL,
+    state     VARCHAR  NOT NULL,
 
-             FOREIGN KEY (state)
-              REFERENCES gm.states(name),
+              FOREIGN KEY (state)
+               REFERENCES gm.states(name),
 
-    year     CHAR(4)  NOT NULL,
-    name     VARCHAR  NOT NULL,
+    year      CHAR(4)  NOT NULL,
+    name      VARCHAR  NOT NULL,
 
-             UNIQUE (state, year, name),
+              UNIQUE (state, year, name),
 
-    geometry GEOMETRY NOT NULL
+    geometry  GEOMETRY NOT NULL,
+
+    area      REAL GENERATED ALWAYS AS (ST_Area(geometry, true) / 2589988.11) STORED,
+    perimeter REAL GENERATED ALWAYS AS (ST_Perimeter(geometry, true) / 1609.34) STORED,
+    npi       REAL GENERATED ALWAYS AS ((2 * SQRT(PI() * ST_Area(geometry, true))) / ST_Perimeter(geometry, true)) STORED
 );
 ''')
 
@@ -276,7 +296,11 @@ CREATE TABLE gm.wards (
                   FOREIGN KEY (state, year, congressional)
                    REFERENCES gm.congressionals(state, year, name),
 
-    geometry      GEOMETRY NOT NULL
+    geometry      GEOMETRY NOT NULL,
+
+    area          REAL GENERATED ALWAYS AS (ST_Area(geometry, true) / 2589988.11) STORED,
+    perimeter     REAL GENERATED ALWAYS AS (ST_Perimeter(geometry, true) / 1609.34) STORED,
+    npi           REAL GENERATED ALWAYS AS ((2 * SQRT(PI() * ST_Area(geometry, true))) / ST_Perimeter(geometry, true)) STORED
 );
 ''')
 
@@ -337,24 +361,30 @@ cur.execute('DROP TABLE IF EXISTS gm.votes CASCADE;')
 
 cur.execute('''
 CREATE TABLE gm.votes (
-    state      VARCHAR NOT NULL,
+    state           VARCHAR NOT NULL,
 
-               FOREIGN KEY (state)
-                REFERENCES gm.states(name),
+                    FOREIGN KEY (state)
+                     REFERENCES gm.states(name),
 
-    race       VARCHAR NOT NULL,
-    year       CHAR(4) NOT NULL,
-    ward_year  CHAR(4) NOT NULL,
-    ward       VARCHAR NOT NULL,
+    race            VARCHAR NOT NULL,
+    year            CHAR(4) NOT NULL,
+    ward_year       CHAR(4) NOT NULL,
+    ward            VARCHAR NOT NULL,
 
-               UNIQUE (state, race, year, ward_year, ward),
+                    UNIQUE (state, race, year, ward_year, ward),
 
-               FOREIGN KEY (state, ward_year, ward)
-                REFERENCES gm.wards(state, year, name),
+                    FOREIGN KEY (state, ward_year, ward)
+                     REFERENCES gm.wards(state, year, name),
 
-    total      INTEGER NOT NULL,
-    democrat   INTEGER NOT NULL,
-    republican INTEGER NOT NULL
+    total           INTEGER NOT NULL,
+    democrat        INTEGER NOT NULL,
+    republican      INTEGER NOT NULL,
+
+    competitiveness REAL GENERATED ALWAYS AS (CASE
+                                                WHEN democrat + republican > 0
+                                                  THEN ((democrat::REAL / (democrat + republican)) - 0.5) / 0.5
+                                                ELSE 0
+                                              END) STORED
 );
 ''')
 
